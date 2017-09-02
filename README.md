@@ -1,2 +1,2 @@
-# hello-world
-this is my hello-world repository
+#hello-world
+这是我的第一个仓库，我主要用来学习以及与其它技术爱好者进行交流，发布自己的项目等。
