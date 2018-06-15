@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+   <head>
+     <style>
+	body{
+		background-color:rgb(176,176,176);
+
+	}
+	/**改变按钮的背景颜色**/
+     	.focus{
+		background-color:"red";
+	}
+     </style>
+     <script src="http://cdn.static.runoob.com/libs/jquery/1.10.2/jquery.min.js"></script>
+     <link rel="stylesheet" href="http://cdn.static.runoob.com/libs/bootstrap/3.3.7/css/bootstrap.min.css" />
+     <script src="http://cdn.static.runoob.com/libs/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+     <script>
+     	/**
+	*获取温度和湿度的方法
+	**/
+     	function getDht11() {  
+	   var data_array = new Array(2);	
+	   $.ajax({
+		  type:"GET",
+		  url:"/getdht11data",
+		  async:false,
+		  success:function(data,status,xhr){
+		     console.log("data:",data);
+		     console.log("status:",status);
+		     console.log("xhr:",xhr);
+		     var jsondata = data;
+		     $("#time").html(data.time); 
+		     $("#temperature").html(data.temperature);
+		     //获取温度
+		     var temperature = data.temperature;
+		     //存储温度到data_array数组中
+		     data_array[0] = temperature;
+		     console.log("输出温度:" + temperature);
+		     console.log("温度的类型为：" + typeof temperature);
+		     //获取湿度
+		     var humidity = data.humidity ;
+		     console.log("湿度的类型：" + typeof humidity);
+		     //将字符串的湿度数据，转换为数值类型
+		     var humidity_number = parseFloat(humidity);
+		     //存储湿度到data_array数组中
+		     data_array[1] = humidity_number;
+		     //如果湿度小于指定值，则触发浇水的事件
+		     console.log("转换之后湿度的类型为：" + typeof humidity_number);
+		     console.log("humidity_number:" + humidity_number);
+		     console.log("获取湿度：" + humidity);
+		     $("#humidity").html(data.humidity);
+		  }
+		  });
+	   console.log("保存温湿度的数组内容为：" + data_array);
+	   return data_array;
+	}
+	 /**
+	  *查看图片的方法
+	  **/
+	   function getLvZhiImage() {  	
+	     console.log("查看绿植照片");
+	     /**
+	        首先发送一个ajax请求，树莓派端接收到一个命令之后，
+		启动照相机模块，执行拍照命令，拍摄图片并将其保存到服务器
+		静态文件目录中，服务器给客户端一个图片的链接地址，然后客户端通过
+		该链接自动访问该图片的信息。
+	       */
+	     $.ajax({
+	     	type:"GET",
+		url:"/lookimage",
+		success:function(data,status,xhr){
+			var a_lookimage = $("<a id='a_image' href='/static/"+ data+"' style='display:none;' target='_blank'><span id='myspan'>查看图片</span></a>");
+			$("#a_image").attr("href","/static/" + data);
+			$("#showimage").append(a_lookimage);
+			$("#myspan").click();
+			$("#showimage").html("");
+		},
+	     });
+	   }
+
+
+	/**
+	 * 打开继电器模块
+	 **/
+	 function startJiDianQi() {
+		 $("#startspan").html("处于浇水状态");
+		 $("#closespan").html("");
+		 console.log("开启继电器，进行浇水");
+		   $.ajax({
+		      type:"GET",
+		      url : "/controlJiDianQi?commond=1",
+		      success:function(data,status,xhr){
+		      	console.log("data:",data);
+			console.log("status:",status);
+			console.log("xhr:",xhr);
+			if(data.msg == "正在开始浇水"){
+			   console.log(data.msg);
+			} else {
+			   alert("哎呀，主人，服务器出了一点小状况，一会就好，您先稍等");
+			}
+		      	}
+		});
+	   }
+
+
+	/**
+	 *关闭继电器方法
+	 **/
+	function closeJiDianQi() { 
+		$("#closespan").html("处于停止浇水状态");
+		$("#startspan").html("");
+	  	console.log("正在停止浇水");
+		$.ajax({ 
+		   type:"GET",
+		   url:"/controlJiDianQi?commond=0",
+		   success:function(data,status,xhr){
+		   	console.log("data",data);
+			console.log("status",status);
+			console.log("xhr:",xhr);
+			if(data.msg == "已经停止浇水"){
+			   console.log(data.msg);
+			} else {
+			   alert("哎呀，主人，服务器出了一点小状况，一会就好，您先稍等");
+			}
+		   }
+		});
+	}
+
+	/**
+	 *定义一个对象，该对象具备采集温湿度功能，浇水功能，停止浇水功能
+	 **/
+	function Manager() {
+	   this.getTemperatureHumidity = getDht11;
+	   this.stopJiDianQi = closeJiDianQi;
+	   this.startJiDianQi = startJiDianQi;
+	}
+     </script>
+     <script type="text/javascript">
+        $(document).ready(function(){
+	   //获取绿植温度的模块
+	   var dht11 = $("#dht11");
+	   dht11.click(getDht11);
+
+	   //查看绿植照片的模块
+	   var lookimage = $("#lookimage");
+	   lookimage.click(getLvZhiImage);
+
+	   //控制继电器模块
+	   $("#startJiDianQi").click(startJiDianQi);
+	   $("#closeJiDianQi").click(closeJiDianQi);
+	   //实例化一个管理者对象，用于自动采集温湿度及其控制继电器的启动和关闭
+	   var manager = new Manager();
+	   //每8秒调用一次定时器，用于检测温湿度
+	   var timer = setInterval(function(){ 
+	   	var data_array = manager.getTemperatureHumidity();
+		console.log("温湿度的数组为：" + data_array);
+		//自动获取温度
+		var temperature = data_array[0];
+		//自动获取湿度
+		var humidity = data_array[1];
+		if( humidity < 34 ) {  //如果湿度小于50，则打开继电器
+		   manager.startJiDianQi();
+		} else if( humidity > 44){  // 如果湿度大于等于50，关闭继电器
+		   manager.stopJiDianQi();
+		}
+	   },8000);
+	});
+     </script>
+   </head>
+<body style="background-color:rgb(176,176,176);">
+   <div id="dht11div">
+        <span class="text-info">采集的时间:</span><font id="time" color="white"></font><br />
+	<span class="text-info">绿植的温度(单位:度):</span><font id="temperature" color="white"></font><br />
+	<span class="text-info">绿植的湿度:</span><font id="humidity" color="white"></font><br />
+   </div><br />
+   <button id="dht11" class="btn btn-info btn-lg">获取温湿度</button>
+   <button id="lookimage" class="btn btn-info btn-lg">查看绿植</button>
+   <div id='showimage'></div>
+   <br />
+   <button id="startJiDianQi" class="btn btn-info btn-lg">开始浇水</button>&nbsp;&nbsp;&nbsp;<font class="text-info" color="red" id="startspan"></font>
+   <div style="width:10px;height:20px;"></div>
+   <button id="closeJiDianQi" class="btn btn-info btn-lg">停止浇水</button>&nbsp;&nbsp;&nbsp;<font color="red" id="closespan" class="text-info"></font>
+   
+</body>
+</html>
